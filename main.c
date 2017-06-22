@@ -13,7 +13,7 @@
 
 typedef enum {false, true} bool;  // Boolean type
 typedef unsigned int uint;  // Unsigned int as uint for facility
-typedef struct _block  //peep struct
+typedef struct _square  //peep struct
 {
 
     uint value;
@@ -44,68 +44,151 @@ uint readBit(uint data, uint bit)
 }
 
 
-uint lastNumbersLine(peep block[9][9], uint line)
+uint lastNumbersLine(peep square[9][9], uint line)
 {
     uint lasting = ~0;
     int i;
     for(i=0; i<9; i++)
     {
-        lasting = eraseBit(lasting, block[line][i].value - 1);
+        lasting = eraseBit(lasting, square[line][i].value - 1);
     }
 
     return lasting;
 }
 
-uint lastNumbersCollumm(peep block[9][9], uint collumm)
+
+uint lastNumbersColumn(peep square[9][9], uint column)
 {
     uint lasting = ~0;
     int i;
     for(i=0; i<9; i++)
     {
-        lasting = eraseBit(lasting, block[i][collumm].value - 1);
+        lasting = eraseBit(lasting, square[i][column].value - 1);
     }
 
     return lasting;
 }
 
-void updateScreen(peep block[9][9])
+
+uint lastNumbersBlock(peep square[9][9], uint block_x, uint block_y)
+{
+    uint lasting = ~0;
+    const uint range_x = 3 * (block_x + 1);
+    const uint range_y = 3 * (block_y + 1);
+    
+    int i, j;
+    
+    for(i=block_x*3; i<range_x; i++)
+    {
+        for(j=block_y*3; j<range_y; j++)
+        {
+            lasting = eraseBit(lasting, square[i][j].value - 1);
+        }
+    }
+
+    return lasting;
+}
+
+uint scanNumbers(peep *square[9][9])
+{
+    int i, j, k;
+    // Get numbers from user
+    fflush(stdin);
+    for(i=0; i<9; i++)
+    {
+        for(j=0; j<9; j++)
+        {
+            // If result is not uint, store zero.
+            if(!scanf("%u", &square[i][j]->value)) square[i][j]->value = 0;
+            square[i][j]->possibleValues = ~0;
+        }
+    }
+}
+
+void updateScreen(peep square[9][9])
 {
     int i, j, k;
     for(i=0; i<9; i++)
     {
         for(j=0; j<9; j++)
         {
-            printf("%u ", block[i][j].value);
-            if((j+1)%3 == 0) printf("| ");
+            printf("%u_", square[i][j].value);
+            if((j+1)%3 == 0 && j) printf("|_");
         }
 
         printf("\n");
         if((i+1)%3 == 0)
         {
-            for(k=0; k<(2*9 + 2*3 - 1); k++) printf("_");
+            for(k=0; k<(2*9 + 2*3 - 1); k++) printf("-");
             printf("\n");
         }
         printf("\n");
     }
 }
 
+
 int main ()
 {
-    int i, j, k;
-    peep block[9][9];
-
-    //Get numbers from user
-    fflush(stdin);
-    for(i=0; i<9; i++)
+    int i, j, k, // First indices
+        ii, jj, kk; // Second indices
+    peep square[9][9]; // Main Matrix declaration
+    
+    scanf("%d", &ii); // To use default sudoku, use negative number 
+    if(ii<0)
     {
-        for(j=0; j<9; j++)
+        jj = 0;
+        for(i=0; i<9; i++)
         {
-            if(!scanf("%u", &block[i][j].value)) block[i][j].value = 0;  // If it's not an integer
-            //block[i][j].value = (i+j + 1)%9;
-            block[i][j].possibleValues = ~0;
+            for(j=0; j<9; j++)
+            {
+                square[i][j].value = (jj % 9) + 1;
+                jj++;
+            }
         }
     }
+    else scanNumbers(&square);
+    
+    uint lasting;
+    //Possible lasting values for each square in all lines
+    for(i=0; i<9; i++)
+    {
+        lasting = lastNumbersLine(square, i);
+        for(j=0; j<9; j++)
+        {
+            square[i][j].possibleValues &= lasting;    
+        }
+    }
+    
+    //Possible lasting values for each square in all columns
+    for(i=0; i<9; i++)
+    {
+        lasting = lastNumbersColumn(square, i);
+        for(j=0; j<9; j++)
+        {
+            square[j][i].possibleValues &= lasting;  // Note orientation
+        }
+    }
+    
+    //Possible lasting values for each block 
+    for(i=0; i<3; i++)
+    {
+        for(j=0; j<3; j++)
+        {
+            lasting = lastNumbersBlock(square, i, j);
+            for(ii=i*3; ii<i*3+3; ii++)
+            {
+                for(jj=j*3; jj<j*3+3; jj++)
+                {
+                    square[ii][jj].possibleValues &= lasting; 
+                }
+            }
+        }
+    }
+    
+    // The possible values for each square should be now complete.
+    // Now we need to find squares that have just one possible value and assign
+    //it to the square value.
 
-    updateScreen(block[9][9]);
+    updateScreen(square);
     return 0;
 }
